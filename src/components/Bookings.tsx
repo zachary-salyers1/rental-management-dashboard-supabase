@@ -1,62 +1,86 @@
-import React, { useState } from 'react'
-import BookingDetailsCard from './BookingDetailsCard'
-import ContractUploadModal from './ContractUploadModal'
+import React, { useState, useEffect } from 'react'
+import { useAuth } from '../contexts/AuthContext'
+import { getBookings, addBooking, updateBooking, deleteBooking, uploadContract } from '../utils/firestore'
+import AddBookingModal from './AddBookingModal'
 
 interface BookingsProps {
   bookings: any[]
   setBookings: React.Dispatch<React.SetStateAction<any[]>>
-  guests: any[]
-  properties: any[]
 }
 
-const Bookings: React.FC<BookingsProps> = ({ bookings, setBookings, guests, properties }) => {
-  const [selectedBooking, setSelectedBooking] = useState<any | null>(null)
-  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false)
-  const [currentBookingId, setCurrentBookingId] = useState<number | null>(null)
+const Bookings: React.FC<BookingsProps> = ({ bookings, setBookings }) => {
+  const { user } = useAuth()
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [editingBooking, setEditingBooking] = useState<any | null>(null)
+
+  useEffect(() => {
+    if (user) {
+      fetchBookings()
+    }
+  }, [user])
+
+  const fetchBookings = async () => {
+    if (user) {
+      try {
+        const fetchedBookings = await getBookings(user.uid)
+        setBookings(fetchedBookings)
+      } catch (error) {
+        console.error('Error fetching bookings:', error)
+      }
+    }
+  }
 
   const handleAddBooking = () => {
-    setSelectedBooking({ isNew: true })
+    setEditingBooking(null)
+    setIsModalOpen(true)
   }
 
   const handleEditBooking = (booking: any) => {
-    setSelectedBooking(booking)
+    setEditingBooking(booking)
+    setIsModalOpen(true)
   }
 
-  const handleCloseDetails = () => {
-    setSelectedBooking(null)
-  }
-
-  const handleUpdateBooking = (updatedBooking: any) => {
-    if (updatedBooking.isNew) {
-      setBookings([...bookings, { ...updatedBooking, id: Date.now() }])
-    } else {
-      const updatedBookings = bookings.map(booking => 
-        booking.id === updatedBooking.id ? updatedBooking : booking
-      )
-      setBookings(updatedBookings)
+  const handleDeleteBooking = async (bookingId: string) => {
+    if (user) {
+      try {
+        await deleteBooking(bookingId)
+        setBookings(bookings.filter(booking => booking.id !== bookingId))
+      } catch (error) {
+        console.error('Error deleting booking:', error)
+      }
     }
-    setSelectedBooking(null)
   }
 
-  const handleDeleteBooking = (bookingId: number) => {
-    const updatedBookings = bookings.filter(booking => booking.id !== bookingId)
-    setBookings(updatedBookings)
-  }
-
-  const handleUploadContract = (bookingId: number) => {
-    setCurrentBookingId(bookingId)
-    setIsUploadModalOpen(true)
-  }
-
-  const handleContractUpload = (file: File) => {
-    if (currentBookingId) {
-      const updatedBookings = bookings.map(booking =>
-        booking.id === currentBookingId ? { ...booking, contract: file.name } : booking
-      )
-      setBookings(updatedBookings)
+  const handleUploadContract = async (bookingId: string) => {
+    if (!user) {
+      console.error('User not authenticated');
+      // You might want to show an error message to the user here
+      return;
     }
-    setIsUploadModalOpen(false)
-    setCurrentBookingId(null)
+
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = '.pdf,.doc,.docx'
+    input.onchange = async (e: Event) => {
+      const file = (e.target as HTMLInputElement).files?.[0]
+      if (file) {
+        try {
+          const contractUrl = await uploadContract(user.uid, bookingId, file)
+          setBookings(bookings.map(booking => 
+            booking.id === bookingId ? { ...booking, contract: contractUrl } : booking
+          ))
+        } catch (error) {
+          console.error('Error uploading contract:', error)
+          // You might want to show an error message to the user here
+        }
+      }
+    }
+    input.click()
+  }
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false)
+    setEditingBooking(null)
   }
 
   return (
@@ -90,14 +114,9 @@ const Bookings: React.FC<BookingsProps> = ({ bookings, setBookings, guests, prop
                 <td className="p-2 text-foreground">{booking.additionalInfo}</td>
                 <td className="p-2 text-foreground">
                   {booking.contract ? (
-                    <button className="text-accent">View</button>
+                    <a href={booking.contract} target="_blank" rel="noopener noreferrer" className="text-accent">View</a>
                   ) : (
-                    <button
-                      className="text-accent"
-                      onClick={() => handleUploadContract(booking.id)}
-                    >
-                      Upload
-                    </button>
+                    <button onClick={() => handleUploadContract(booking.id)} className="text-accent">Upload</button>
                   )}
                 </td>
                 <td className="p-2">
@@ -109,19 +128,11 @@ const Bookings: React.FC<BookingsProps> = ({ bookings, setBookings, guests, prop
           </tbody>
         </table>
       </div>
-      {selectedBooking && (
-        <BookingDetailsCard
-          booking={selectedBooking}
-          onClose={handleCloseDetails}
-          onUpdateBooking={handleUpdateBooking}
-          guests={guests}
-          properties={properties}
-        />
-      )}
-      <ContractUploadModal
-        isOpen={isUploadModalOpen}
-        onClose={() => setIsUploadModalOpen(false)}
-        onUpload={handleContractUpload}
+      <AddBookingModal
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
+        onAddBooking={fetchBookings}
+        editingBooking={editingBooking}
       />
     </div>
   )

@@ -5,12 +5,13 @@ import dynamic from 'next/dynamic'
 import { useAuth } from '../contexts/AuthContext'
 import SignIn from './SignIn'
 import SignUp from './SignUp'
-import Header from './Header'  // Add this import
+import Header from './Header'
 
 const Overview = dynamic(() => import('./Overview'), { ssr: false })
 const Properties = dynamic(() => import('./Properties'), { ssr: false })
 const Guests = dynamic(() => import('./Guests'), { ssr: false })
 const Calendar = dynamic(() => import('./Calendar'), { ssr: false })
+const Bookings = dynamic(() => import('./Bookings'), { ssr: false })
 
 interface Booking {
   id: number
@@ -24,7 +25,7 @@ const Dashboard: React.FC = () => {
   const { user, loading } = useAuth();
   const [activeTab, setActiveTab] = useState('overview')
   const [properties, setProperties] = useState<any[]>([])
-  const [bookings, setBookings] = useState<Booking[]>([])
+  const [bookings, setBookings] = useState<any[]>([])
   const [showSignUp, setShowSignUp] = useState(false)
   const [guests, setGuests] = useState<any[]>([])
 
@@ -90,38 +91,47 @@ const Dashboard: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <Header />  {/* Add the Header component here */}
-      <div className="p-6">
-        <div className="mb-6 border-b border-gray-200">
-          <button
-            className={`mr-4 pb-2 ${activeTab === 'overview' ? 'border-b-2 border-accent text-primary font-semibold' : 'text-secondary'}`}
-            onClick={() => setActiveTab('overview')}
-          >
-            Overview
-          </button>
-          <button
-            className={`mr-4 pb-2 ${activeTab === 'properties' ? 'border-b-2 border-accent text-primary font-semibold' : 'text-secondary'}`}
-            onClick={() => setActiveTab('properties')}
-          >
-            Properties
-          </button>
-          <button
-            className={`mr-4 pb-2 ${activeTab === 'guests' ? 'border-b-2 border-accent text-primary font-semibold' : 'text-secondary'}`}
-            onClick={() => setActiveTab('guests')}
-          >
-            Guests
-          </button>
-          <button
-            className={`mr-4 pb-2 ${activeTab === 'calendar' ? 'border-b-2 border-accent text-primary font-semibold' : 'text-secondary'}`}
-            onClick={() => setActiveTab('calendar')}
-          >
-            Calendar
-          </button>
+      <Header />
+      <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        <div className="px-4 py-6 sm:px-0">
+          <div className="flex space-x-4 mb-4">
+            <button
+              className={`px-4 py-2 rounded ${activeTab === 'overview' ? 'bg-accent text-white' : 'bg-gray-200 text-gray-700'}`}
+              onClick={() => setActiveTab('overview')}
+            >
+              Overview
+            </button>
+            <button
+              className={`px-4 py-2 rounded ${activeTab === 'properties' ? 'bg-accent text-white' : 'bg-gray-200 text-gray-700'}`}
+              onClick={() => setActiveTab('properties')}
+            >
+              Properties
+            </button>
+            <button
+              className={`px-4 py-2 rounded ${activeTab === 'guests' ? 'bg-accent text-white' : 'bg-gray-200 text-gray-700'}`}
+              onClick={() => setActiveTab('guests')}
+            >
+              Guests
+            </button>
+            <button
+              className={`px-4 py-2 rounded ${activeTab === 'bookings' ? 'bg-accent text-white' : 'bg-gray-200 text-gray-700'}`}
+              onClick={() => setActiveTab('bookings')}
+            >
+              Bookings
+            </button>
+            <button
+              className={`px-4 py-2 rounded ${activeTab === 'calendar' ? 'bg-accent text-white' : 'bg-gray-200 text-gray-700'}`}
+              onClick={() => setActiveTab('calendar')}
+            >
+              Calendar
+            </button>
+          </div>
+          {activeTab === 'overview' && <Overview />}
+          {activeTab === 'properties' && <Properties properties={properties} setProperties={setProperties} />}
+          {activeTab === 'guests' && <Guests guests={guests} setGuests={setGuests} />}
+          {activeTab === 'bookings' && <Bookings bookings={bookings} setBookings={setBookings} />}
+          {activeTab === 'calendar' && <Calendar bookings={bookings} />}
         </div>
-        {activeTab === 'overview' && <Overview />}
-        {activeTab === 'properties' && <Properties properties={properties} setProperties={setProperties} />}
-        {activeTab === 'guests' && <Guests guests={guests} setGuests={setGuests} />}
-        {activeTab === 'calendar' && <Calendar bookings={bookings} />}
       </div>
     </div>
   )

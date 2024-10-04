@@ -1,5 +1,6 @@
-import { db } from '../firebaseConfig';
+import { db, storage } from '../firebaseConfig';
 import { collection, addDoc, updateDoc, deleteDoc, doc, getDocs, query, where } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 export const testFirebaseConnection = async () => {
   try {
@@ -110,6 +111,76 @@ export const getGuests = async (userId: string) => {
     return guests;
   } catch (error) {
     console.error('Error getting guests: ', error);
+    throw error;
+  }
+};
+
+export const addBooking = async (userId: string, bookingData: any) => {
+  try {
+    const bookingsCollection = collection(db, 'bookings');
+    const docRef = await addDoc(bookingsCollection, {
+      ...bookingData,
+      userId,
+    });
+    return docRef.id;
+  } catch (error) {
+    console.error('Error adding booking: ', error);
+    throw error;
+  }
+};
+
+export const updateBooking = async (bookingId: string, bookingData: any) => {
+  try {
+    const bookingRef = doc(db, 'bookings', bookingId);
+    await updateDoc(bookingRef, bookingData);
+  } catch (error) {
+    console.error('Error updating booking: ', error);
+    throw error;
+  }
+};
+
+export const deleteBooking = async (bookingId: string) => {
+  try {
+    await deleteDoc(doc(db, 'bookings', bookingId));
+  } catch (error) {
+    console.error('Error deleting booking: ', error);
+    throw error;
+  }
+};
+
+export const getBookings = async (userId: string) => {
+  try {
+    const bookingsCollection = collection(db, 'bookings');
+    const q = query(bookingsCollection, where('userId', '==', userId));
+    const querySnapshot = await getDocs(q);
+    const bookings = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    return bookings;
+  } catch (error) {
+    console.error('Error getting bookings: ', error);
+    throw error;
+  }
+};
+
+export const uploadContract = async (userId: string, bookingId: string, file: File) => {
+  try {
+    console.log('Uploading contract:', { userId, bookingId, fileName: file.name });
+    const contractRef = ref(storage, `contracts/${userId}/${bookingId}/${file.name}`);
+    await uploadBytes(contractRef, file);
+    console.log('Contract uploaded successfully');
+    const downloadURL = await getDownloadURL(contractRef);
+    console.log('Download URL obtained:', downloadURL);
+    
+    const bookingRef = doc(db, 'bookings', bookingId);
+    await updateDoc(bookingRef, { contract: downloadURL });
+    console.log('Booking document updated with contract URL');
+    
+    return downloadURL;
+  } catch (error) {
+    console.error('Error uploading contract:', error);
+    if (error instanceof Error) {
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+    }
     throw error;
   }
 };

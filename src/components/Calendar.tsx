@@ -10,11 +10,12 @@ const localizer = momentLocalizer(moment)
 
 interface CalendarProps {
   bookings: Array<{
-    id: number
-    title: string
-    start: Date
-    end: Date
+    id: string
+    guestName: string
     property: string
+    checkIn: string
+    checkOut: string
+    contract?: string
   }>
 }
 
@@ -30,12 +31,31 @@ const Calendar: React.FC<CalendarProps> = ({ bookings }) => {
     setView(newView)
   }
 
+  const events = bookings.map(booking => ({
+    id: booking.id,
+    title: `${booking.guestName} - ${booking.property}`,
+    start: new Date(booking.checkIn),
+    end: new Date(booking.checkOut),
+    contract: booking.contract,
+  }))
+
+  const eventStyleGetter = (event: any) => {
+    const style = {
+      backgroundColor: event.contract ? '#4CAF50' : '#2196F3',
+      borderRadius: '5px',
+      color: 'white',
+      border: 'none',
+      display: 'block',
+    }
+    return { style }
+  }
+
   return (
     <div className="h-[600px]"> {/* Adjust the height as needed */}
       <h2 className="text-xl font-semibold mb-4">Booking Calendar</h2>
       <BigCalendar
         localizer={localizer}
-        events={bookings}
+        events={events}
         startAccessor="start"
         endAccessor="end"
         style={{ height: '100%' }}
@@ -45,6 +65,7 @@ const Calendar: React.FC<CalendarProps> = ({ bookings }) => {
         onNavigate={onNavigate}
         toolbar={true}
         views={['month', 'week', 'day']}
+        eventPropGetter={eventStyleGetter}
       />
     </div>
   )
