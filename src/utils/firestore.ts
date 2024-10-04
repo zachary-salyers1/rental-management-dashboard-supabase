@@ -65,13 +65,15 @@ export const getProperties = async (userId: string) => {
 
 // Similar functions for guests and bookings...
 
-export const addGuest = async (userId: string, guestData: any) => {
+export const addGuest = async (userId: string, guestData: Omit<Guest, 'id' | 'totalStays' | 'lastStay'>) => {
   try {
     console.log('Adding guest:', { userId, guestData });
     const guestsCollection = collection(db, 'guests');
     const docRef = await addDoc(guestsCollection, {
       ...guestData,
       userId,
+      totalStays: 0,
+      lastStay: null,
     });
     console.log('Guest added with ID:', docRef.id);
     return docRef.id;
@@ -106,7 +108,35 @@ export const getGuests = async (userId: string) => {
     const guestsCollection = collection(db, 'guests');
     const q = query(guestsCollection, where('userId', '==', userId));
     const querySnapshot = await getDocs(q);
-    const guests = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    
+    const guestsPromises = querySnapshot.docs.map(async (guestDoc) => {
+      const guestData = guestDoc.data();
+      const bookingsCollection = collection(db, 'bookings');
+      const bookingsQuery = query(bookingsCollection, 
+        where('userId', '==', userId),
+        where('guestId', '==', guestDoc.id)
+      );
+      const bookingsSnapshot = await getDocs(bookingsQuery);
+      const totalStays = bookingsSnapshot.size;
+      
+      // Get the most recent booking date
+      let lastStay = null;
+      if (totalStays > 0) {
+        const sortedBookings = bookingsSnapshot.docs
+          .map(doc => doc.data())
+          .sort((a, b) => new Date(b.checkOut).getTime() - new Date(a.checkOut).getTime());
+        lastStay = sortedBookings[0].checkOut;
+      }
+
+      return {
+        id: guestDoc.id,
+        ...guestData,
+        totalStays,
+        lastStay
+      };
+    });
+
+    const guests = await Promise.all(guestsPromises);
     console.log('Fetched guests:', guests);
     return guests;
   } catch (error) {

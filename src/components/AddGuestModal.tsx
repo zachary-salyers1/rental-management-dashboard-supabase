@@ -1,44 +1,53 @@
 import React, { useState, useEffect } from 'react'
+import { useAuth } from '../contexts/AuthContext'
+import { Guest } from '../types/guest'
 
 interface AddGuestModalProps {
   isOpen: boolean
   onClose: () => void
-  onAddGuest: (guest: any) => void
-  onUpdateGuest: (guest: any) => void
-  editingGuest: any | null
+  onAddGuest: (guest: Omit<Guest, 'id' | 'totalStays' | 'lastStay'>) => void
+  onUpdateGuest: (guest: Guest) => void
+  editingGuest: Guest | null
 }
 
 const AddGuestModal: React.FC<AddGuestModalProps> = ({ isOpen, onClose, onAddGuest, onUpdateGuest, editingGuest }) => {
-  const [guest, setGuest] = useState({
+  const { user } = useAuth()
+  const [guest, setGuest] = useState<Omit<Guest, 'id' | 'totalStays' | 'lastStay'>>({
     name: '',
     email: '',
     phone: '',
-    lastStay: '',
-    totalStays: 0,
   })
 
   useEffect(() => {
     if (editingGuest) {
-      setGuest(editingGuest)
+      setGuest({
+        name: editingGuest.name,
+        email: editingGuest.email,
+        phone: editingGuest.phone,
+      })
     } else {
       setGuest({
         name: '',
         email: '',
         phone: '',
-        lastStay: '',
-        totalStays: 0,
       })
     }
   }, [editingGuest])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+    const guestData: Omit<Guest, 'id' | 'totalStays' | 'lastStay'> = {
+      name: guest.name,
+      email: guest.email,
+      phone: guest.phone,
+    };
+    console.log('Submitting guest data:', guestData);
     if (editingGuest) {
-      onUpdateGuest(guest)
+      onUpdateGuest({ ...editingGuest, ...guestData });
     } else {
-      onAddGuest(guest)
+      onAddGuest(guestData);
     }
-    onClose()
+    onClose();
   }
 
   if (!isOpen) return null
@@ -76,25 +85,6 @@ const AddGuestModal: React.FC<AddGuestModalProps> = ({ isOpen, onClose, onAddGue
               onChange={(e) => setGuest({ ...guest, phone: e.target.value })}
               className="w-full p-2 border rounded"
               required
-            />
-          </div>
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Last Stay</label>
-            <input
-              type="date"
-              value={guest.lastStay}
-              onChange={(e) => setGuest({ ...guest, lastStay: e.target.value })}
-              className="w-full p-2 border rounded"
-            />
-          </div>
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Total Stays</label>
-            <input
-              type="number"
-              value={guest.totalStays}
-              onChange={(e) => setGuest({ ...guest, totalStays: parseInt(e.target.value) })}
-              className="w-full p-2 border rounded"
-              min="0"
             />
           </div>
           <div className="flex justify-end">

@@ -4,16 +4,17 @@ import React, { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { getGuests, addGuest, updateGuest, deleteGuest } from '../utils/firestore'
 import AddGuestModal from './AddGuestModal'
+import { Guest } from '../types/guest'
 
 interface GuestsProps {
-  guests: any[] | undefined
-  setGuests: React.Dispatch<React.SetStateAction<any[]>>
+  guests: Guest[]
+  setGuests: React.Dispatch<React.SetStateAction<Guest[]>>
 }
 
-const Guests: React.FC<GuestsProps> = ({ guests = [], setGuests }) => {
+const Guests: React.FC<GuestsProps> = ({ guests, setGuests }) => {
   const { user } = useAuth();
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [editingGuest, setEditingGuest] = useState<number | null>(null)
+  const [editingGuest, setEditingGuest] = useState<Guest | null>(null)
 
   useEffect(() => {
     if (user) {
@@ -32,43 +33,45 @@ const Guests: React.FC<GuestsProps> = ({ guests = [], setGuests }) => {
     }
   };
 
-  const handleAddGuest = async (newGuest: any) => {
+  const handleAddGuest = async (newGuest: Omit<Guest, 'id' | 'totalStays' | 'lastStay'>) => {
     if (user) {
       try {
+        console.log('Attempting to add guest:', newGuest);
         const guestId = await addGuest(user.uid, newGuest);
-        setGuests(prevGuests => [...prevGuests, { ...newGuest, id: guestId }]);
+        console.log('Guest added successfully with ID:', guestId);
+        setGuests(prevGuests => [...prevGuests, { ...newGuest, id: guestId, totalStays: 0, lastStay: null }]);
+        setIsModalOpen(false);
       } catch (error) {
         console.error('Error adding guest:', error);
       }
     }
   }
 
-  const handleEditGuest = (index: number) => {
-    setEditingGuest(index)
+  const handleEditGuest = (guest: Guest) => {
+    setEditingGuest(guest)
     setIsModalOpen(true)
   }
 
-  const handleUpdateGuest = async (updatedGuest: any) => {
-    if (user) {
+  const handleUpdateGuest = async (updatedGuest: Guest) => {
+    if (user && updatedGuest.id) {
       try {
         await updateGuest(updatedGuest.id, updatedGuest);
-        const newGuests = guests.map((guest) => 
+        setGuests(prevGuests => prevGuests.map(guest => 
           guest.id === updatedGuest.id ? updatedGuest : guest
-        );
-        setGuests(newGuests);
+        ));
       } catch (error) {
         console.error('Error updating guest:', error);
       }
     }
     setEditingGuest(null);
+    setIsModalOpen(false);
   }
 
   const handleDeleteGuest = async (guestId: string) => {
     if (user) {
       try {
         await deleteGuest(guestId);
-        const newGuests = guests.filter((guest) => guest.id !== guestId);
-        setGuests(newGuests);
+        setGuests(prevGuests => prevGuests.filter(guest => guest.id !== guestId));
       } catch (error) {
         console.error('Error deleting guest:', error);
       }
@@ -101,27 +104,19 @@ const Guests: React.FC<GuestsProps> = ({ guests = [], setGuests }) => {
             </tr>
           </thead>
           <tbody>
-            {guests && guests.length > 0 ? (
-              guests.map((guest, index) => (
-                <tr key={index} className="border-b border-gray-100">
-                  <td className="p-2 text-foreground">{guest.name}</td>
-                  <td className="p-2 text-foreground">{guest.email}</td>
-                  <td className="p-2 text-foreground">{guest.phone}</td>
-                  <td className="p-2 text-foreground">{guest.lastStay}</td>
-                  <td className="p-2 text-foreground">{guest.totalStays}</td>
-                  <td className="p-2">
-                    <button onClick={() => handleEditGuest(index)} className="mr-2 text-accent">Edit</button>
-                    <button onClick={() => handleDeleteGuest(guest.id)} className="text-red-500">Delete</button>
-                  </td>
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan={6} className="p-2 text-center text-secondary">
-                  No guests available.
+            {guests.map((guest) => (
+              <tr key={guest.id} className="border-b border-gray-100">
+                <td className="p-2 text-foreground">{guest.name}</td>
+                <td className="p-2 text-foreground">{guest.email}</td>
+                <td className="p-2 text-foreground">{guest.phone}</td>
+                <td className="p-2 text-foreground">{guest.lastStay || 'N/A'}</td>
+                <td className="p-2 text-foreground">{guest.totalStays}</td>
+                <td className="p-2">
+                  <button onClick={() => handleEditGuest(guest)} className="text-accent mr-2">Edit</button>
+                  <button onClick={() => handleDeleteGuest(guest.id)} className="text-red-500">Delete</button>
                 </td>
               </tr>
-            )}
+            ))}
           </tbody>
         </table>
       </div>
@@ -130,7 +125,7 @@ const Guests: React.FC<GuestsProps> = ({ guests = [], setGuests }) => {
         onClose={handleCloseModal}
         onAddGuest={handleAddGuest}
         onUpdateGuest={handleUpdateGuest}
-        editingGuest={editingGuest !== null ? guests[editingGuest] : null}
+        editingGuest={editingGuest}
       />
     </div>
   )
