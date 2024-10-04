@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { addBooking, updateBooking, getProperties, getGuests } from '../utils/firestore'
+import { Booking } from '../types/booking'
 
 interface AddBookingModalProps {
   isOpen: boolean
@@ -11,46 +12,95 @@ interface AddBookingModalProps {
 
 const AddBookingModal: React.FC<AddBookingModalProps> = ({ isOpen, onClose, onAddBooking, editingBooking }) => {
   const { user } = useAuth()
-  const [booking, setBooking] = useState({
+  const [booking, setBooking] = useState<Omit<Booking, 'id' | 'totalAmount'>>({
     guestId: '',
     propertyId: '',
+    guestName: '',
+    property: '',
     checkIn: '',
     checkOut: '',
+    pricePerNight: 0,
     additionalInfo: '',
   })
-  const [properties, setProperties] = useState<any[]>([])
+  const [totalAmount, setTotalAmount] = useState<number>(0)
   const [guests, setGuests] = useState<any[]>([])
+  const [properties, setProperties] = useState<any[]>([])
+  const [totalNights, setTotalNights] = useState<number>(0)
 
   useEffect(() => {
     if (user) {
-      fetchPropertiesAndGuests()
+      fetchGuests()
+      fetchProperties()
     }
   }, [user])
 
   useEffect(() => {
     if (editingBooking) {
       setBooking(editingBooking)
+      calculateTotalAmount(editingBooking.checkIn, editingBooking.checkOut, editingBooking.pricePerNight)
     } else {
       setBooking({
         guestId: '',
         propertyId: '',
+        guestName: '',
+        property: '',
         checkIn: '',
         checkOut: '',
+        pricePerNight: 0,
         additionalInfo: '',
       })
+      setTotalAmount(0)
     }
   }, [editingBooking])
 
-  const fetchPropertiesAndGuests = async () => {
+  const fetchGuests = async () => {
     if (user) {
-      try {
-        const fetchedProperties = await getProperties(user.uid)
-        const fetchedGuests = await getGuests(user.uid)
-        setProperties(fetchedProperties)
-        setGuests(fetchedGuests)
-      } catch (error) {
-        console.error('Error fetching properties and guests:', error)
+      const fetchedGuests = await getGuests(user.uid)
+      setGuests(fetchedGuests)
+    }
+  }
+
+  const fetchProperties = async () => {
+    if (user) {
+      const fetchedProperties = await getProperties(user.uid)
+      setProperties(fetchedProperties)
+    }
+  }
+
+  const calculateTotalAmount = (checkIn: string, checkOut: string, pricePerNight: number) => {
+    if (checkIn && checkOut && pricePerNight) {
+      const start = new Date(checkIn);
+      const end = new Date(checkOut);
+      const nights = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+      setTotalNights(nights);
+      setTotalAmount(nights * pricePerNight);
+    } else {
+      setTotalNights(0);
+      setTotalAmount(0);
+    }
+  }
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setBooking({ ...booking, [name]: value });
+    if (name === 'propertyId') {
+      const selectedProperty = properties.find(p => p.id === value);
+      if (selectedProperty) {
+        setBooking(prev => ({
+          ...prev,
+          propertyId: value,
+          property: selectedProperty.name,
+          pricePerNight: selectedProperty.pricePerNight
+        }));
+        calculateTotalAmount(booking.checkIn, booking.checkOut, selectedProperty.pricePerNight);
       }
+    }
+    if (name === 'checkIn' || name === 'checkOut') {
+      calculateTotalAmount(
+        name === 'checkIn' ? value : booking.checkIn,
+        name === 'checkOut' ? value : booking.checkOut,
+        booking.pricePerNight
+      );
     }
   }
 
@@ -62,6 +112,8 @@ const AddBookingModal: React.FC<AddBookingModalProps> = ({ isOpen, onClose, onAd
           ...booking,
           guestName: guests.find(g => g.id === booking.guestId)?.name,
           property: properties.find(p => p.id === booking.propertyId)?.name,
+          totalNights, // Add this line
+          totalAmount,
         }
         if (editingBooking) {
           await updateBooking(editingBooking.id, bookingData)
@@ -86,8 +138,9 @@ const AddBookingModal: React.FC<AddBookingModalProps> = ({ isOpen, onClose, onAd
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-1">Guest</label>
             <select
+              name="guestId"
               value={booking.guestId}
-              onChange={(e) => setBooking({ ...booking, guestId: e.target.value })}
+              onChange={handleInputChange}
               className="w-full p-2 border rounded"
               required
             >
@@ -100,8 +153,9 @@ const AddBookingModal: React.FC<AddBookingModalProps> = ({ isOpen, onClose, onAd
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-1">Property</label>
             <select
+              name="propertyId"
               value={booking.propertyId}
-              onChange={(e) => setBooking({ ...booking, propertyId: e.target.value })}
+              onChange={handleInputChange}
               className="w-full p-2 border rounded"
               required
             >
@@ -115,8 +169,9 @@ const AddBookingModal: React.FC<AddBookingModalProps> = ({ isOpen, onClose, onAd
             <label className="block text-sm font-medium text-gray-700 mb-1">Check-in Date</label>
             <input
               type="date"
+              name="checkIn"
               value={booking.checkIn}
-              onChange={(e) => setBooking({ ...booking, checkIn: e.target.value })}
+              onChange={handleInputChange}
               className="w-full p-2 border rounded"
               required
             />
@@ -125,19 +180,48 @@ const AddBookingModal: React.FC<AddBookingModalProps> = ({ isOpen, onClose, onAd
             <label className="block text-sm font-medium text-gray-700 mb-1">Check-out Date</label>
             <input
               type="date"
+              name="checkOut"
               value={booking.checkOut}
-              onChange={(e) => setBooking({ ...booking, checkOut: e.target.value })}
+              onChange={handleInputChange}
               className="w-full p-2 border rounded"
               required
             />
           </div>
           <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Price per Night</label>
+            <input
+              type="number"
+              name="pricePerNight"
+              value={booking.pricePerNight}
+              className="w-full p-2 border rounded bg-gray-100"
+              readOnly
+            />
+          </div>
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Total Amount</label>
+            <input
+              type="text"
+              value={`$${totalAmount.toFixed(2)}`}
+              className="w-full p-2 border rounded bg-gray-100"
+              readOnly
+            />
+          </div>
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Total Nights</label>
+            <input
+              type="text"
+              value={totalNights}
+              className="w-full p-2 border rounded bg-gray-100"
+              readOnly
+            />
+          </div>
+          <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-1">Additional Info</label>
             <textarea
+              name="additionalInfo"
               value={booking.additionalInfo}
-              onChange={(e) => setBooking({ ...booking, additionalInfo: e.target.value })}
+              onChange={handleInputChange}
               className="w-full p-2 border rounded"
-              rows={3}
             />
           </div>
           <div className="flex justify-end">

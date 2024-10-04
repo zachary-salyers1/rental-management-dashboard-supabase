@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { getBookings, addBooking, updateBooking, deleteBooking, uploadContract } from '../utils/firestore'
 import AddBookingModal from './AddBookingModal'
+import { Booking } from '../types/booking'
 
 interface BookingsProps {
-  bookings: any[]
-  setBookings: React.Dispatch<React.SetStateAction<any[]>>
+  bookings: Booking[]
+  setBookings: React.Dispatch<React.SetStateAction<Booking[]>>
 }
 
 const Bookings: React.FC<BookingsProps> = ({ bookings, setBookings }) => {
@@ -99,6 +100,9 @@ const Bookings: React.FC<BookingsProps> = ({ bookings, setBookings }) => {
               <th className="text-left p-2 text-secondary">Property</th>
               <th className="text-left p-2 text-secondary">Check-in</th>
               <th className="text-left p-2 text-secondary">Check-out</th>
+              <th className="text-left p-2 text-secondary">Total Nights</th>
+              <th className="text-left p-2 text-secondary">Price/Night</th>
+              <th className="text-left p-2 text-secondary">Total Amount</th>
               <th className="text-left p-2 text-secondary">Additional Info</th>
               <th className="text-left p-2 text-secondary">Contract</th>
               <th className="text-left p-2 text-secondary">Actions</th>
@@ -111,7 +115,11 @@ const Bookings: React.FC<BookingsProps> = ({ bookings, setBookings }) => {
                 <td className="p-2 text-foreground">{booking.property}</td>
                 <td className="p-2 text-foreground">{booking.checkIn}</td>
                 <td className="p-2 text-foreground">{booking.checkOut}</td>
-                <td className="p-2 text-foreground">{booking.additionalInfo}</td>
+                <td className="p-2 text-foreground">{booking.totalNights}</td>
+                <td className="p-2 text-foreground">${booking.pricePerNight}</td>
+                <td className="p-2 text-foreground">
+                  ${booking.totalAmount ? booking.totalAmount.toFixed(2) : 'N/A'}
+                </td>
                 <td className="p-2 text-foreground">
                   {booking.contract ? (
                     <a href={booking.contract} target="_blank" rel="noopener noreferrer" className="text-accent">View</a>

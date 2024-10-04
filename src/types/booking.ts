@@ -6,4 +6,7 @@ export interface Booking {
   checkOut: string
   additionalInfo: string
   contract?: string
+  pricePerNight: number // Add this line
+  totalAmount: number // Add this line
+  totalNights: number // Add this line
 }

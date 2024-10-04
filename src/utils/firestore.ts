@@ -1,6 +1,14 @@
 import { db, storage } from '../firebaseConfig';
 import { collection, addDoc, updateDoc, deleteDoc, doc, getDocs, query, where } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { Booking } from '../types/booking';
+
+const calculateTotalAmount = (checkIn: string, checkOut: string, pricePerNight: number): number => {
+  const start = new Date(checkIn);
+  const end = new Date(checkOut);
+  const nights = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+  return nights * pricePerNight;
+};
 
 export const testFirebaseConnection = async () => {
   try {
@@ -145,7 +153,7 @@ export const getGuests = async (userId: string) => {
   }
 };
 
-export const addBooking = async (userId: string, bookingData: any) => {
+export const addBooking = async (userId: string, bookingData: Omit<Booking, 'id'>) => {
   try {
     const bookingsCollection = collection(db, 'bookings');
     const docRef = await addDoc(bookingsCollection, {
@@ -159,7 +167,7 @@ export const addBooking = async (userId: string, bookingData: any) => {
   }
 };
 
-export const updateBooking = async (bookingId: string, bookingData: any) => {
+export const updateBooking = async (bookingId: string, bookingData: Partial<Booking>) => {
   try {
     const bookingRef = doc(db, 'bookings', bookingId);
     await updateDoc(bookingRef, bookingData);
@@ -178,13 +186,12 @@ export const deleteBooking = async (bookingId: string) => {
   }
 };
 
-export const getBookings = async (userId: string) => {
+export const getBookings = async (userId: string): Promise<Booking[]> => {
   try {
     const bookingsCollection = collection(db, 'bookings');
     const q = query(bookingsCollection, where('userId', '==', userId));
     const querySnapshot = await getDocs(q);
-    const bookings = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    return bookings;
+    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Booking));
   } catch (error) {
     console.error('Error getting bookings: ', error);
     throw error;
