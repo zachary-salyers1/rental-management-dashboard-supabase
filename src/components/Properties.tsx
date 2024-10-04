@@ -1,40 +1,43 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import AddPropertyModal from './AddPropertyModal'
 import { useAuth } from '../contexts/AuthContext'
-import { getProperties, addProperty, updateProperty, deleteProperty, testFirebaseConnection } from '../utils/firestore'
+import { getProperties, addProperty, updateProperty, deleteProperty, getAssignedGuestsCount } from '../utils/firestore'
+import AddPropertyModal from './AddPropertyModal'
 
 interface PropertiesProps {
-  properties: any[] | undefined
+  properties: any[]
   setProperties: React.Dispatch<React.SetStateAction<any[]>>
 }
 
-const Properties: React.FC<PropertiesProps> = ({ properties = [], setProperties }) => {
+const Properties: React.FC<PropertiesProps> = ({ properties, setProperties }) => {
   const { user } = useAuth();
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [editingProperty, setEditingProperty] = useState<number | null>(null)
+  const [editingProperty, setEditingProperty] = useState<any | null>(null)
 
   useEffect(() => {
-    console.log('Properties component mounted');
     if (user) {
-      console.log('User authenticated:', user.uid);
-      fetchProperties();
-      testFirebaseConnection();
-    } else {
-      console.log('No authenticated user');
+      fetchProperties()
     }
   }, [user]);
 
   const fetchProperties = async () => {
     if (user) {
       try {
-        console.log('Fetching properties for user:', user.uid);
-        const fetchedProperties = await getProperties(user.uid);
-        console.log('Fetched properties:', fetchedProperties);
-        setProperties(fetchedProperties);
+        const fetchedProperties = await getProperties(user.uid)
+        const propertiesWithGuestCount = await Promise.all(fetchedProperties.map(async (property) => {
+          try {
+            const assignedGuests = await getAssignedGuestsCount(user.uid, property.id)
+            return { ...property, assignedGuests }
+          } catch (error) {
+            console.error(`Error fetching assigned guests for property ${property.id}:`, error)
+            return { ...property, assignedGuests: 0 }
+          }
+        }))
+        setProperties(propertiesWithGuestCount)
       } catch (error) {
-        console.error('Error fetching properties:', error);
+        console.error('Error fetching properties:', error)
+        setProperties([]) // Set to empty array in case of error
       }
     }
   };
@@ -120,7 +123,7 @@ const Properties: React.FC<PropertiesProps> = ({ properties = [], setProperties 
           <tbody>
             {properties && properties.length > 0 ? (
               properties.map((property, index) => (
-                <tr key={index} className="border-b border-gray-100">
+                <tr key={property.id || index} className="border-b border-gray-100">
                   <td className="p-2 text-foreground">{property.name}</td>
                   <td className="p-2 text-foreground">{property.type}</td>
                   <td className="p-2 text-foreground">{property.location}</td>
@@ -128,7 +131,7 @@ const Properties: React.FC<PropertiesProps> = ({ properties = [], setProperties 
                   <td className="p-2 text-foreground">{property.bathrooms}</td>
                   <td className="p-2 text-foreground">{property.maxGuests}</td>
                   <td className="p-2 text-foreground">${property.pricePerNight}</td>
-                  <td className="p-2 text-foreground">{property.assignedGuests}</td>
+                  <td className="p-2 text-foreground">{property.assignedGuests || 0}</td>
                   <td className="p-2">
                     <button onClick={() => handleEditProperty(index)} className="mr-2 text-accent">Edit</button>
                     <button onClick={() => handleDeleteProperty(property.id)} className="text-red-500">Delete</button>
@@ -138,7 +141,7 @@ const Properties: React.FC<PropertiesProps> = ({ properties = [], setProperties 
             ) : (
               <tr>
                 <td colSpan={9} className="p-2 text-center text-secondary">
-                  No properties available.
+                  No properties available or error loading properties.
                 </td>
               </tr>
             )}

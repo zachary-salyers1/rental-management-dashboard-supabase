@@ -1,56 +1,53 @@
 'use client'
 
-import React from 'react'
+import React, { useState, useEffect } from 'react'
+import { useAuth } from '../contexts/AuthContext'
+import { getTotalProperties, getCurrentlyStayingGuests } from '../utils/firestore'
 
 const Overview: React.FC = () => {
+  const { user } = useAuth()
+  const [totalProperties, setTotalProperties] = useState<number | null>(null)
+  const [currentGuests, setCurrentGuests] = useState<number | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const fetchData = async () => {
+      if (user) {
+        try {
+          console.log('Fetching overview data for user:', user.uid);
+          const properties = await getTotalProperties(user.uid)
+          setTotalProperties(properties)
+          console.log('Total properties:', properties);
+
+          const guests = await getCurrentlyStayingGuests(user.uid)
+          setCurrentGuests(guests)
+          console.log('Current guests:', guests);
+          setError(null)
+        } catch (error) {
+          console.error('Error fetching overview data:', error)
+          setError('Failed to fetch overview data. Please try again later.')
+        }
+      }
+    }
+
+    fetchData()
+  }, [user])
+
+  if (error) {
+    return <div className="text-red-500">{error}</div>
+  }
+
   return (
-    <div>
-      <div className="grid grid-cols-4 gap-4 mb-6">
-        <div className="bg-card-bg p-4 rounded shadow">
-          <h3 className="text-sm font-semibold text-secondary mb-2">Total Properties</h3>
-          <p className="text-3xl font-bold text-primary">12</p>
-        </div>
-        <div className="bg-card-bg p-4 rounded shadow">
-          <h3 className="text-sm font-semibold text-secondary mb-2">Total Guests</h3>
-          <p className="text-3xl font-bold text-primary">48</p>
-        </div>
-        <div className="bg-card-bg p-4 rounded shadow">
-          <h3 className="text-sm font-semibold text-secondary mb-2">Upcoming Bookings</h3>
-          <p className="text-3xl font-bold text-primary">6</p>
-        </div>
-        <div className="bg-card-bg p-4 rounded shadow">
-          <h3 className="text-sm font-semibold text-secondary mb-2">Monthly Revenue</h3>
-          <p className="text-3xl font-bold text-primary">$24,500</p>
-        </div>
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="bg-white p-4 rounded-lg shadow">
+        <h3 className="text-lg font-semibold mb-2">Total Properties</h3>
+        <p className="text-3xl font-bold">{totalProperties !== null ? totalProperties : 'Loading...'}</p>
       </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div className="bg-card-bg p-4 rounded shadow">
-          <h3 className="text-lg font-semibold mb-4 text-primary">Recent Activity</h3>
-          <p className="text-sm text-secondary mb-2">Your rental properties' latest updates and bookings.</p>
-          <ul className="text-foreground">
-            <li className="mb-2 flex items-center"><span className="mr-2">📅</span> New booking for Lakeside Retreat</li>
-            <li className="mb-2 flex items-center"><span className="mr-2">👤</span> New guest registered: John Doe</li>
-            <li className="flex items-center"><span className="mr-2">📈</span> Revenue increased by 15% this month</li>
-          </ul>
-        </div>
-        <div className="bg-card-bg p-4 rounded shadow">
-          <h3 className="text-lg font-semibold mb-4 text-primary">Top Performing Properties</h3>
-          <ul className="text-foreground">
-            <li className="mb-2 flex items-center justify-between">
-              <span>🏠 Lakeside Retreat</span>
-              <span className="font-semibold">$5,200</span>
-            </li>
-            <li className="mb-2 flex items-center justify-between">
-              <span>🏔️ Mountain View Cabin</span>
-              <span className="font-semibold">$4,800</span>
-            </li>
-            <li className="flex items-center justify-between">
-              <span>🏙️ Downtown Loft</span>
-              <span className="font-semibold">$3,900</span>
-            </li>
-          </ul>
-        </div>
+      <div className="bg-white p-4 rounded-lg shadow">
+        <h3 className="text-lg font-semibold mb-2">Current Guests</h3>
+        <p className="text-3xl font-bold">{currentGuests !== null ? currentGuests : 'Loading...'}</p>
       </div>
+      {/* Add more overview cards here as needed */}
     </div>
   )
 }

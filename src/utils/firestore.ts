@@ -214,3 +214,69 @@ export const uploadContract = async (userId: string, bookingId: string, file: Fi
     throw error;
   }
 };
+
+export const getTotalProperties = async (userId: string): Promise<number> => {
+  try {
+    const propertiesCollection = collection(db, 'properties');
+    const q = query(propertiesCollection, where('userId', '==', userId));
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.size;
+  } catch (error) {
+    console.error('Error getting total properties: ', error);
+    throw error;
+  }
+};
+
+export const getCurrentlyStayingGuests = async (userId: string): Promise<number> => {
+  try {
+    const bookingsCollection = collection(db, 'bookings');
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Set to start of day
+    const todayString = today.toISOString().split('T')[0];
+    
+    console.log('Fetching current guests for date:', todayString);
+
+    const q = query(
+      bookingsCollection, 
+      where('userId', '==', userId)
+    );
+    const querySnapshot = await getDocs(q);
+    
+    const currentGuests = querySnapshot.docs.filter(doc => {
+      const data = doc.data();
+      return data.checkIn <= todayString && data.checkOut > todayString;
+    });
+
+    console.log('Current guests query result:', currentGuests.map(doc => doc.data()));
+    return currentGuests.length;
+  } catch (error) {
+    console.error('Error getting currently staying guests: ', error);
+    throw error;
+  }
+};
+
+export const getAssignedGuestsCount = async (userId: string, propertyId: string): Promise<number> => {
+  try {
+    const bookingsCollection = collection(db, 'bookings');
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Set to start of day
+    const todayString = today.toISOString().split('T')[0];
+    
+    const q = query(
+      bookingsCollection, 
+      where('userId', '==', userId),
+      where('propertyId', '==', propertyId)
+    );
+    const querySnapshot = await getDocs(q);
+    
+    const currentGuests = querySnapshot.docs.filter(doc => {
+      const data = doc.data();
+      return data.checkIn <= todayString && data.checkOut > todayString;
+    });
+
+    return currentGuests.length;
+  } catch (error) {
+    console.error('Error getting assigned guests count: ', error);
+    return 0; // Return 0 instead of throwing an error
+  }
+};
