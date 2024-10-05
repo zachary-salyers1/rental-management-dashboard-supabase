@@ -62,16 +62,24 @@ const Properties: React.FC<PropertiesProps> = ({ properties, setProperties }) =>
     setIsModalOpen(true)
   }
 
-  const handleUpdateProperty = async (updatedProperty: any) => {
+  const handleUpdateProperty = async (updatedProperty: Property) => {
     if (user) {
       try {
+        console.log('Updating property:', updatedProperty);
         await updateProperty(updatedProperty.id, updatedProperty);
-        const newProperties = properties.map((property) => 
-          property.id === updatedProperty.id ? updatedProperty : property
+        setProperties(prevProperties => 
+          prevProperties.map(property =>
+            property.id === updatedProperty.id ? updatedProperty : property
+          )
         );
-        setProperties(newProperties);
+        console.log('Property updated successfully');
       } catch (error) {
         console.error('Error updating property:', error);
+        if (error instanceof Error) {
+          console.error('Error message:', error.message);
+          console.error('Error stack:', error.stack);
+        }
+        // You might want to show an error message to the user here
       }
     }
     setEditingProperty(null);

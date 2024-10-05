@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
-import { addBooking, updateBooking, getProperties, getGuests, isPropertyAvailable } from '../utils/firestore'
+import { addBooking, updateBooking, getProperties, getGuests, isPropertyAvailable, getProperty } from '../utils/firestore'
 import { Booking } from '../types/booking'
 
 interface AddBookingModalProps {
@@ -81,19 +81,23 @@ const AddBookingModal: React.FC<AddBookingModalProps> = ({ isOpen, onClose, onAd
     }
   }
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+  const handleInputChange = async (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setBooking({ ...booking, [name]: value });
     if (name === 'propertyId') {
-      const selectedProperty = properties.find(p => p.id === value);
-      if (selectedProperty) {
-        setBooking(prev => ({
-          ...prev,
-          propertyId: value,
-          property: selectedProperty.name,
-          pricePerNight: selectedProperty.pricePerNight
-        }));
-        calculateTotalAmount(booking.checkIn, booking.checkOut, selectedProperty.pricePerNight);
+      try {
+        const selectedProperty = await getProperty(value);
+        if (selectedProperty) {
+          setBooking(prev => ({
+            ...prev,
+            propertyId: value,
+            property: selectedProperty.name,
+            pricePerNight: selectedProperty.pricePerNight
+          }));
+          calculateTotalAmount(booking.checkIn, booking.checkOut, selectedProperty.pricePerNight);
+        }
+      } catch (error) {
+        console.error('Error fetching property details:', error);
       }
     }
     if (name === 'checkIn' || name === 'checkOut') {

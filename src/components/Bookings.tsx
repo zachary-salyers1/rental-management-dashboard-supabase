@@ -12,7 +12,7 @@ interface BookingsProps {
 const Bookings: React.FC<BookingsProps> = ({ bookings, setBookings }) => {
   const { user } = useAuth()
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [editingBooking, setEditingBooking] = useState<any | null>(null)
+  const [editingBooking, setEditingBooking] = useState<Booking | null>(null)
 
   useEffect(() => {
     if (user) {
@@ -36,7 +36,7 @@ const Bookings: React.FC<BookingsProps> = ({ bookings, setBookings }) => {
     setIsModalOpen(true)
   }
 
-  const handleEditBooking = (booking: any) => {
+  const handleEditBooking = (booking: Booking) => {
     setEditingBooking(booking)
     setIsModalOpen(true)
   }
@@ -45,7 +45,7 @@ const Bookings: React.FC<BookingsProps> = ({ bookings, setBookings }) => {
     if (user) {
       try {
         await deleteBooking(bookingId)
-        setBookings(bookings.filter(booking => booking.id !== bookingId))
+        setBookings(prevBookings => prevBookings.filter(booking => booking.id !== bookingId))
       } catch (error) {
         console.error('Error deleting booking:', error)
       }
@@ -85,18 +85,29 @@ const Bookings: React.FC<BookingsProps> = ({ bookings, setBookings }) => {
   }
 
   const handleAddOrUpdateBooking = async () => {
-    await fetchBookings();
-    setIsModalOpen(false);
-    setEditingBooking(null);
+    await fetchBookings()
+    setIsModalOpen(false)
+    setEditingBooking(null)
+  };
+
+  const refreshBookings = async () => {
+    if (user) {
+      await fetchBookings()
+    }
   };
 
   return (
     <div>
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-semibold text-primary">Booking Management</h2>
-        <button onClick={handleAddBooking} className="bg-accent text-white px-4 py-2 rounded">
-          + Add Booking
-        </button>
+        <div>
+          <button onClick={handleAddBooking} className="bg-accent text-white px-4 py-2 rounded mr-2">
+            + Add Booking
+          </button>
+          <button onClick={refreshBookings} className="bg-accent text-white px-4 py-2 rounded">
+            Refresh Bookings
+          </button>
+        </div>
       </div>
       <div className="bg-card-bg rounded shadow overflow-x-auto">
         <table className="w-full">

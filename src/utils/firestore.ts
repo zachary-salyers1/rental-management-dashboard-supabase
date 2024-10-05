@@ -1,5 +1,5 @@
 import { db, storage } from '../firebaseConfig';
-import { collection, addDoc, updateDoc, deleteDoc, doc, getDocs, query, where, getDoc } from 'firebase/firestore';
+import { collection, addDoc, updateDoc, deleteDoc, doc, getDocs, query, where, getDoc, writeBatch } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { Booking } from '../types/booking';
 
@@ -55,13 +55,48 @@ export const addProperty = async (userId: string, propertyData: any) => {
 
 export const updateProperty = async (propertyId: string, propertyData: any) => {
   try {
+    console.log('Updating property:', { propertyId, propertyData });
     const propertyRef = doc(db, 'properties', propertyId);
+    
+    // Check if the document exists before updating
+    const docSnap = await getDoc(propertyRef);
+    if (!docSnap.exists()) {
+      throw new Error(`Property with ID ${propertyId} does not exist`);
+    }
+
     await updateDoc(propertyRef, {
       ...propertyData,
-      color: propertyData.color || '#000000', // Ensure color is always set
+      color: propertyData.color || '#000000',
     });
+
+    // Update future bookings
+    const bookingsCollection = collection(db, 'bookings');
+    const today = new Date().toISOString().split('T')[0];
+    const q = query(
+      bookingsCollection,
+      where('propertyId', '==', propertyId),
+      where('checkIn', '>=', today)
+    );
+    const bookingsSnapshot = await getDocs(q);
+
+    const batch = writeBatch(db);
+    bookingsSnapshot.forEach((bookingDoc) => {
+      const bookingData = bookingDoc.data();
+      const newTotalAmount = calculateTotalAmount(bookingData.checkIn, bookingData.checkOut, propertyData.pricePerNight);
+      batch.update(bookingDoc.ref, { 
+        pricePerNight: propertyData.pricePerNight,
+        totalAmount: newTotalAmount
+      });
+    });
+
+    await batch.commit();
+    console.log(`Updated property ${propertyId} and ${bookingsSnapshot.size} related bookings`);
   } catch (error) {
-    console.error('Error updating property: ', error);
+    console.error('Error updating property and bookings: ', error);
+    if (error instanceof Error) {
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+    }
     throw error;
   }
 };
@@ -431,5 +466,19 @@ export const getAssignedGuestsCount = async (userId: string, propertyId: string)
   } catch (error) {
     console.error('Error getting assigned guests count: ', error);
     return 0; // Return 0 instead of throwing an error
+  }
+};
+
+export const getProperty = async (propertyId: string) => {
+  try {
+    const propertyDoc = await getDoc(doc(db, 'properties', propertyId));
+    if (propertyDoc.exists()) {
+      return { id: propertyDoc.id, ...propertyDoc.data() };
+    } else {
+      throw new Error('Property not found');
+    }
+  } catch (error) {
+    console.error('Error getting property: ', error);
+    throw error;
   }
 };
