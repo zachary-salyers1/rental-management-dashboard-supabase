@@ -6,6 +6,7 @@ import { useAuth } from '../contexts/AuthContext'
 import SignIn from './SignIn'
 import SignUp from './SignUp'
 import Header from './Header'
+import { getProperties } from '../utils/firestore'
 
 const Overview = dynamic(() => import('./Overview'), { ssr: false })
 const Properties = dynamic(() => import('./Properties'), { ssr: false })
@@ -58,6 +59,23 @@ const Dashboard: React.FC = () => {
     ]
     setBookings(mockBookings)
   }, [])
+
+  useEffect(() => {
+    if (user) {
+      fetchProperties()
+    }
+  }, [user])
+
+  const fetchProperties = async () => {
+    if (user) {
+      try {
+        const fetchedProperties = await getProperties(user.uid)
+        setProperties(fetchedProperties)
+      } catch (error) {
+        console.error('Error fetching properties:', error)
+      }
+    }
+  }
 
   if (loading) {
     return <div className="flex justify-center items-center h-screen">Loading...</div>;
@@ -130,7 +148,7 @@ const Dashboard: React.FC = () => {
           {activeTab === 'properties' && <Properties properties={properties} setProperties={setProperties} />}
           {activeTab === 'guests' && <Guests guests={guests} setGuests={setGuests} />}
           {activeTab === 'bookings' && <Bookings bookings={bookings} setBookings={setBookings} />}
-          {activeTab === 'calendar' && <Calendar bookings={bookings} />}
+          {activeTab === 'calendar' && <Calendar bookings={bookings} properties={properties} />}
         </div>
       </div>
     </div>

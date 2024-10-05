@@ -17,7 +17,8 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({ isOpen, onClose, on
     bathrooms: '',
     maxGuests: '',
     pricePerNight: '',
-    description: ''
+    description: '',
+    color: '#000000' // Default color
   })
 
   useEffect(() => {
@@ -32,7 +33,8 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({ isOpen, onClose, on
         bathrooms: '',
         maxGuests: '',
         pricePerNight: '',
-        description: ''
+        description: '',
+        color: '#000000' // Default color
       })
     }
   }, [editingProperty])
@@ -45,7 +47,8 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({ isOpen, onClose, on
       bathrooms: parseInt(property.bathrooms as string),
       maxGuests: parseInt(property.maxGuests as string),
       pricePerNight: parseFloat(property.pricePerNight as string),
-      assignedGuests: editingProperty ? editingProperty.assignedGuests : 0
+      assignedGuests: editingProperty ? editingProperty.assignedGuests : 0,
+      color: property.color // Ensure color is included
     }
     if (editingProperty) {
       onUpdateProperty(propertyData)
@@ -144,6 +147,15 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({ isOpen, onClose, on
               onChange={(e) => setProperty({ ...property, description: e.target.value })}
               className="w-full p-2 border rounded"
               rows={3}
+            />
+          </div>
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Color</label>
+            <input
+              type="color"
+              value={property.color}
+              onChange={(e) => setProperty({ ...property, color: e.target.value })}
+              className="w-full p-1 border rounded"
             />
           </div>
           <div className="flex justify-end">

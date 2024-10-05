@@ -10,6 +10,14 @@ interface Guest {
   // Add other properties as needed
 }
 
+// Add this interface if it doesn't exist
+interface Property {
+  id: string;
+  name: string;
+  // ... other existing fields
+  color: string; // New field for property color
+}
+
 const calculateTotalAmount = (checkIn: string, checkOut: string, pricePerNight: number): number => {
   const start = new Date(checkIn);
   const end = new Date(checkOut);
@@ -35,6 +43,7 @@ export const addProperty = async (userId: string, propertyData: any) => {
     const docRef = await addDoc(propertiesCollection, {
       ...propertyData,
       userId,
+      color: propertyData.color || '#000000', // Default to black if no color is provided
     });
     console.log('Property added with ID:', docRef.id);
     return docRef.id;
@@ -47,7 +56,10 @@ export const addProperty = async (userId: string, propertyData: any) => {
 export const updateProperty = async (propertyId: string, propertyData: any) => {
   try {
     const propertyRef = doc(db, 'properties', propertyId);
-    await updateDoc(propertyRef, propertyData);
+    await updateDoc(propertyRef, {
+      ...propertyData,
+      color: propertyData.color || '#000000', // Ensure color is always set
+    });
   } catch (error) {
     console.error('Error updating property: ', error);
     throw error;

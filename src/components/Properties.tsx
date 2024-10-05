@@ -98,10 +98,7 @@ const Properties: React.FC<PropertiesProps> = ({ properties, setProperties }) =>
     <div>
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-semibold text-primary">Property Management</h2>
-        <button onClick={() => {
-          console.log('Add Property button clicked');
-          setIsModalOpen(true);
-        }} className="bg-accent text-white px-4 py-2 rounded">
+        <button onClick={() => setIsModalOpen(true)} className="bg-accent text-white px-4 py-2 rounded">
           + Add Property
         </button>
       </div>
@@ -117,6 +114,7 @@ const Properties: React.FC<PropertiesProps> = ({ properties, setProperties }) =>
               <th className="text-left p-2 text-secondary">Max Guests</th>
               <th className="text-left p-2 text-secondary">Price/Night</th>
               <th className="text-left p-2 text-secondary">Assigned Guests</th>
+              <th className="text-left p-2 text-secondary">Color</th>
               <th className="text-left p-2 text-secondary">Actions</th>
             </tr>
           </thead>
@@ -133,6 +131,9 @@ const Properties: React.FC<PropertiesProps> = ({ properties, setProperties }) =>
                   <td className="p-2 text-foreground">${property.pricePerNight}</td>
                   <td className="p-2 text-foreground">{property.assignedGuests || 0}</td>
                   <td className="p-2">
+                    <div className="w-6 h-6 rounded-full" style={{ backgroundColor: property.color }}></div>
+                  </td>
+                  <td className="p-2">
                     <button onClick={() => handleEditProperty(index)} className="mr-2 text-accent">Edit</button>
                     <button onClick={() => handleDeleteProperty(property.id)} className="text-red-500">Delete</button>
                   </td>
@@ -140,7 +141,7 @@ const Properties: React.FC<PropertiesProps> = ({ properties, setProperties }) =>
               ))
             ) : (
               <tr>
-                <td colSpan={9} className="p-2 text-center text-secondary">
+                <td colSpan={10} className="p-2 text-center text-secondary">
                   No properties available or error loading properties.
                 </td>
               </tr>
