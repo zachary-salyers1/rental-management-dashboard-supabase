@@ -10,11 +10,31 @@ const SignUp: React.FC = () => {
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
     try {
       await createUserWithEmailAndPassword(auth, email, password);
     } catch (error) {
-      setError('Failed to create an account');
-      console.error(error);
+      if (error instanceof Error) {
+        console.error('Signup error:', error);
+        switch (error.message) {
+          case 'auth/email-already-in-use':
+            setError('This email is already in use. Please try a different one.');
+            break;
+          case 'auth/invalid-email':
+            setError('Invalid email address. Please check and try again.');
+            break;
+          case 'auth/weak-password':
+            setError('Password is too weak. Please use a stronger password.');
+            break;
+          case 'auth/operation-not-allowed':
+            setError('Email/password accounts are not enabled. Please contact support.');
+            break;
+          default:
+            setError('Failed to create an account. Please try again.');
+        }
+      } else {
+        setError('An unexpected error occurred. Please try again.');
+      }
     }
   };
 
