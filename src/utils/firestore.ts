@@ -1,7 +1,14 @@
 import { db, storage } from '../firebaseConfig';
-import { collection, addDoc, updateDoc, deleteDoc, doc, getDocs, query, where } from 'firebase/firestore';
+import { collection, addDoc, updateDoc, deleteDoc, doc, getDocs, query, where, getDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { Booking } from '../types/booking';
+
+// Add this interface at the top of the file
+interface Guest {
+  id: string;
+  name: string;
+  // Add other properties as needed
+}
 
 const calculateTotalAmount = (checkIn: string, checkOut: string, pricePerNight: number): number => {
   const start = new Date(checkIn);
@@ -153,8 +160,103 @@ export const getGuests = async (userId: string) => {
   }
 };
 
-export const addBooking = async (userId: string, bookingData: Omit<Booking, 'id'>) => {
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+export const isPropertyAvailable = async (
+  propertyId: string, 
+  checkIn: string, 
+  checkOut: string, 
+  guestId: string,
+  excludeBookingId?: string
+): Promise<{ available: boolean; reason?: string; indexCreationUrl?: string }> => {
+  const maxRetries = 5;
+  const retryDelay = 2000; // 2 seconds
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const bookingsCollection = collection(db, 'bookings');
+      
+      // Check for property availability
+      const propertyQuery = query(
+        bookingsCollection,
+        where('propertyId', '==', propertyId),
+        where('checkOut', '>', checkIn),
+        where('checkIn', '<', checkOut)
+      );
+      console.log('Property query:', propertyQuery);
+      const propertyQuerySnapshot = await getDocs(propertyQuery);
+      console.log('Property query snapshot:', propertyQuerySnapshot);
+      
+      const conflictingPropertyBookings = propertyQuerySnapshot.docs.filter(
+        doc => doc.id !== excludeBookingId
+      );
+
+      if (conflictingPropertyBookings.length > 0) {
+        return { available: false, reason: 'Property is not available for the selected dates.' };
+      }
+
+      // Check for guest availability
+      const guestQuery = query(
+        bookingsCollection,
+        where('guestId', '==', guestId),
+        where('checkOut', '>', checkIn),
+        where('checkIn', '<', checkOut)
+      );
+      const guestQuerySnapshot = await getDocs(guestQuery);
+      
+      const conflictingGuestBookings = guestQuerySnapshot.docs.filter(
+        doc => doc.id !== excludeBookingId
+      );
+
+      if (conflictingGuestBookings.length > 0) {
+        return { available: false, reason: 'Guest already has a booking during this time period.' };
+      }
+
+      return { available: true };
+    } catch (error) {
+      console.error(`Error checking availability (attempt ${attempt + 1}):`, error);
+      if (error instanceof Error) {
+        console.error('Error message:', error.message);
+        console.error('Error stack:', error.stack);
+        if (error.message.includes('The query requires an index')) {
+          const indexCreationUrl = error.message.includes('See its status here:') 
+            ? error.message.split('See its status here: ')[1].split(' .')[0]
+            : error.message.split('You can create it here: ')[1].split(' .')[0];
+          console.log('Index creation or building URL:', indexCreationUrl);
+          if (attempt === maxRetries - 1) {
+            return { available: false, reason: 'Index creation or building required', indexCreationUrl };
+          }
+        } else {
+          throw error;
+        }
+      } else {
+        throw error;
+      }
+      await new Promise(resolve => setTimeout(resolve, retryDelay));
+    }
+  }
+
+  return { available: true };
+};
+
+export const addBooking = async (userId: string, bookingData: Omit<Booking, 'id'>): Promise<string | null> => {
   try {
+    const availabilityCheck = await isPropertyAvailable(
+      bookingData.propertyId, 
+      bookingData.checkIn, 
+      bookingData.checkOut,
+      bookingData.guestId
+    );
+
+    if (!availabilityCheck.available) {
+      if (availabilityCheck.indexCreationUrl) {
+        console.log('Index creation or building required. URL:', availabilityCheck.indexCreationUrl);
+        throw new Error(`INDEX_CREATION_OR_BUILDING_REQUIRED:${availabilityCheck.indexCreationUrl}`);
+      }
+      console.error(availabilityCheck.reason);
+      return null;
+    }
+    
     const bookingsCollection = collection(db, 'bookings');
     const docRef = await addDoc(bookingsCollection, {
       ...bookingData,
@@ -167,10 +269,42 @@ export const addBooking = async (userId: string, bookingData: Omit<Booking, 'id'
   }
 };
 
-export const updateBooking = async (bookingId: string, bookingData: Partial<Booking>) => {
+export const updateBooking = async (bookingId: string, bookingData: Partial<Booking>): Promise<boolean> => {
   try {
+    // First, get the current booking data
     const bookingRef = doc(db, 'bookings', bookingId);
+    const bookingSnapshot = await getDoc(bookingRef);
+    
+    if (!bookingSnapshot.exists()) {
+      console.error('Booking not found');
+      return false;
+    }
+
+    const currentBooking = bookingSnapshot.data() as Booking;
+
+    // Check availability only if dates or property or guest is changing
+    if (
+      bookingData.checkIn !== currentBooking.checkIn ||
+      bookingData.checkOut !== currentBooking.checkOut ||
+      bookingData.propertyId !== currentBooking.propertyId ||
+      (bookingData as any).guestId !== (currentBooking as any).guestId // Use type assertion here
+    ) {
+      const availabilityCheck = await isPropertyAvailable(
+        bookingData.propertyId || currentBooking.propertyId,
+        bookingData.checkIn || currentBooking.checkIn,
+        bookingData.checkOut || currentBooking.checkOut,
+        (bookingData as any).guestId || (currentBooking as any).guestId, // Use type assertion here
+        bookingId // Exclude the current booking from the check
+      );
+
+      if (!availabilityCheck.available) {
+        console.error(availabilityCheck.reason);
+        return false;
+      }
+    }
+
     await updateDoc(bookingRef, bookingData);
+    return true;
   } catch (error) {
     console.error('Error updating booking: ', error);
     throw error;

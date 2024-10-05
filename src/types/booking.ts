@@ -1,12 +1,14 @@
 export interface Booking {
   id: string
+  guestId: string  // Add this line
   guestName: string
+  propertyId: string
   property: string
   checkIn: string
   checkOut: string
   additionalInfo: string
   contract?: string
-  pricePerNight: number // Add this line
-  totalAmount: number // Add this line
-  totalNights: number // Add this line
+  pricePerNight: number
+  totalAmount: number
+  totalNights: number
 }

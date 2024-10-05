@@ -84,6 +84,12 @@ const Bookings: React.FC<BookingsProps> = ({ bookings, setBookings }) => {
     setEditingBooking(null)
   }
 
+  const handleAddOrUpdateBooking = async () => {
+    await fetchBookings();
+    setIsModalOpen(false);
+    setEditingBooking(null);
+  };
+
   return (
     <div>
       <div className="flex justify-between items-center mb-4">
@@ -139,7 +145,7 @@ const Bookings: React.FC<BookingsProps> = ({ bookings, setBookings }) => {
       <AddBookingModal
         isOpen={isModalOpen}
         onClose={handleCloseModal}
-        onAddBooking={fetchBookings}
+        onAddBooking={handleAddOrUpdateBooking}
         editingBooking={editingBooking}
       />
     </div>
