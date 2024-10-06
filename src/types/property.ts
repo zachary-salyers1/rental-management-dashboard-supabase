@@ -17,4 +17,5 @@ export interface Property {
   description: string;
   color: string;
   prices: Price[];
+  assignedGuests: number;
 }

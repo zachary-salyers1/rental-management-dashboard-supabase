@@ -127,17 +127,11 @@ export const getProperties = async (userId: string) => {
 
 // Similar functions for guests and bookings...
 
-export const addGuest = async (userId: string, guestData: Omit<Guest, 'id' | 'totalStays' | 'lastStay'>) => {
+export const addGuest = async (userId: string, guestData: Omit<Guest, 'id'>) => {
   try {
-    console.log('Adding guest:', { userId, guestData });
-    const guestsCollection = collection(db, 'guests');
-    const docRef = await addDoc(guestsCollection, {
-      ...guestData,
-      userId,
-      totalStays: 0,
-      lastStay: null,
-    });
-    console.log('Guest added with ID:', docRef.id);
+    const guestsRef = collection(db, 'guests');
+    const newGuest = { ...guestData, userId };
+    const docRef = await addDoc(guestsRef, newGuest);
     return docRef.id;
   } catch (error) {
     console.error('Error adding guest: ', error);
@@ -164,43 +158,12 @@ export const deleteGuest = async (guestId: string) => {
   }
 };
 
-export const getGuests = async (userId: string) => {
+export const getGuests = async (userId: string): Promise<Guest[]> => {
   try {
-    console.log('Fetching guests for user:', userId);
-    const guestsCollection = collection(db, 'guests');
-    const q = query(guestsCollection, where('userId', '==', userId));
+    const guestsRef = collection(db, 'guests');
+    const q = query(guestsRef, where('userId', '==', userId));
     const querySnapshot = await getDocs(q);
-    
-    const guestsPromises = querySnapshot.docs.map(async (guestDoc) => {
-      const guestData = guestDoc.data();
-      const bookingsCollection = collection(db, 'bookings');
-      const bookingsQuery = query(bookingsCollection, 
-        where('userId', '==', userId),
-        where('guestId', '==', guestDoc.id)
-      );
-      const bookingsSnapshot = await getDocs(bookingsQuery);
-      const totalStays = bookingsSnapshot.size;
-      
-      // Get the most recent booking date
-      let lastStay = null;
-      if (totalStays > 0) {
-        const sortedBookings = bookingsSnapshot.docs
-          .map(doc => doc.data())
-          .sort((a, b) => new Date(b.checkOut).getTime() - new Date(a.checkOut).getTime());
-        lastStay = sortedBookings[0].checkOut;
-      }
-
-      return {
-        id: guestDoc.id,
-        ...guestData,
-        totalStays,
-        lastStay
-      };
-    });
-
-    const guests = await Promise.all(guestsPromises);
-    console.log('Fetched guests:', guests);
-    return guests;
+    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Guest));
   } catch (error) {
     console.error('Error getting guests: ', error);
     throw error;
@@ -445,27 +408,20 @@ export const getCurrentlyStayingGuests = async (userId: string): Promise<number>
 
 export const getAssignedGuestsCount = async (userId: string, propertyId: string): Promise<number> => {
   try {
-    const bookingsCollection = collection(db, 'bookings');
-    const today = new Date();
-    today.setHours(0, 0, 0, 0); // Set to start of day
-    const todayString = today.toISOString().split('T')[0];
-    
+    const bookingsRef = collection(db, 'bookings');
+    const today = new Date().toISOString().split('T')[0]; // Get today's date in YYYY-MM-DD format
     const q = query(
-      bookingsCollection, 
+      bookingsRef,
       where('userId', '==', userId),
-      where('propertyId', '==', propertyId)
+      where('propertyId', '==', propertyId),
+      where('checkIn', '<=', today),
+      where('checkOut', '>', today)
     );
     const querySnapshot = await getDocs(q);
-    
-    const currentGuests = querySnapshot.docs.filter(doc => {
-      const data = doc.data();
-      return data.checkIn <= todayString && data.checkOut > todayString;
-    });
-
-    return currentGuests.length;
+    return querySnapshot.size;
   } catch (error) {
-    console.error('Error getting assigned guests count: ', error);
-    return 0; // Return 0 instead of throwing an error
+    console.error('Error getting assigned guests count:', error);
+    return 0;
   }
 };
 

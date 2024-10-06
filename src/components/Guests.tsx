@@ -29,6 +29,7 @@ const Guests: React.FC<GuestsProps> = ({ guests, setGuests }) => {
         setGuests(fetchedGuests);
       } catch (error) {
         console.error('Error fetching guests:', error);
+        // Handle the error appropriately (e.g., show an error message to the user)
       }
     }
   };
@@ -37,12 +38,13 @@ const Guests: React.FC<GuestsProps> = ({ guests, setGuests }) => {
     if (user) {
       try {
         console.log('Attempting to add guest:', newGuest);
-        const guestId = await addGuest(user.uid, newGuest);
+        const guestId = await addGuest(user.uid, { ...newGuest, userId: user.uid, propertyId: newGuest.propertyId });
         console.log('Guest added successfully with ID:', guestId);
-        setGuests(prevGuests => [...prevGuests, { ...newGuest, id: guestId, totalStays: 0, lastStay: null }]);
+        setGuests(prevGuests => [...prevGuests, { ...newGuest, id: guestId, userId: user.uid, totalStays: 0, lastStay: null }]);
         setIsModalOpen(false);
       } catch (error) {
         console.error('Error adding guest:', error);
+        // Handle the error appropriately (e.g., show an error message to the user)
       }
     }
   }
